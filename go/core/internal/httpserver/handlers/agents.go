@@ -42,26 +42,10 @@ func (h *AgentsHandler) HandleListAgents(w ErrorResponseWriter, r *http.Request)
 		return
 	}
 
-	agentList := &v1alpha2.AgentList{}
-	if err := h.KubeClient.List(r.Context(), agentList); err != nil {
-		w.RespondWithError(errors.NewInternalServerError("Failed to list Agents from Kubernetes", err))
+	agentsWithID, err := h.listAgentResponses(r.Context(), log)
+	if err != nil {
+		w.RespondWithError(err)
 		return
-	}
-
-	agentsWithID := make([]api.AgentResponse, 0)
-	h.appendAgentResponses(r.Context(), log, agentObjects(agentList.Items), &agentsWithID)
-
-	harnessList := &v1alpha2.AgentHarnessList{}
-	if err := h.KubeClient.List(r.Context(), harnessList); err != nil {
-		w.RespondWithError(errors.NewInternalServerError("Failed to list AgentHarness resources from Kubernetes", err))
-		return
-	}
-	for i := range harnessList.Items {
-		sb := &harnessList.Items[i]
-		if sb.Spec.Backend != v1alpha2.AgentHarnessBackendOpenClaw && sb.Spec.Backend != v1alpha2.AgentHarnessBackendNemoClaw {
-			continue
-		}
-		agentsWithID = append(agentsWithID, h.openshellAgentHarnessAgentResponse(r.Context(), log, sb))
 	}
 
 	log.Info("Successfully listed agents", "count", len(agentsWithID))
@@ -94,28 +78,10 @@ func (h *AgentsHandler) HandleListAgentsForNamespace(w ErrorResponseWriter, r *h
 		return
 	}
 
-	nsOpt := client.InNamespace(namespace)
-
-	agentList := &v1alpha2.AgentList{}
-	if err := h.KubeClient.List(r.Context(), agentList, nsOpt); err != nil {
-		w.RespondWithError(errors.NewInternalServerError("Failed to list Agents from Kubernetes", err))
+	agentsWithID, listErr := h.listAgentResponses(r.Context(), log, client.InNamespace(namespace))
+	if listErr != nil {
+		w.RespondWithError(listErr)
 		return
-	}
-
-	agentsWithID := make([]api.AgentResponse, 0)
-	h.appendAgentResponses(r.Context(), log, agentObjects(agentList.Items), &agentsWithID)
-
-	harnessList := &v1alpha2.AgentHarnessList{}
-	if err := h.KubeClient.List(r.Context(), harnessList, nsOpt); err != nil {
-		w.RespondWithError(errors.NewInternalServerError("Failed to list AgentHarness resources from Kubernetes", err))
-		return
-	}
-	for i := range harnessList.Items {
-		sb := &harnessList.Items[i]
-		if sb.Spec.Backend != v1alpha2.AgentHarnessBackendOpenClaw && sb.Spec.Backend != v1alpha2.AgentHarnessBackendNemoClaw {
-			continue
-		}
-		agentsWithID = append(agentsWithID, h.openshellAgentHarnessAgentResponse(r.Context(), log, sb))
 	}
 
 	log.Info("Successfully listed agents for namespace", "namespace", namespace, "count", len(agentsWithID))
@@ -144,6 +110,35 @@ func (h *AgentsHandler) HandleListSandboxAgents(w ErrorResponseWriter, r *http.R
 	log.Info("Successfully listed sandbox agents", "count", len(agentsWithID))
 	data := api.NewResponse(agentsWithID, "Successfully listed sandbox agents", false)
 	RespondWithJSON(w, http.StatusOK, data)
+}
+
+// listAgentResponses fetches Agent and AgentHarness resources, applies the
+// provided list options (e.g. client.InNamespace), and returns the merged
+// slice of AgentResponse values. Both HandleListAgents and
+// HandleListAgentsForNamespace call this helper so their aggregation logic
+// stays in sync.
+func (h *AgentsHandler) listAgentResponses(ctx context.Context, log logr.Logger, opts ...client.ListOption) ([]api.AgentResponse, error) {
+	agentList := &v1alpha2.AgentList{}
+	if err := h.KubeClient.List(ctx, agentList, opts...); err != nil {
+		return nil, errors.NewInternalServerError("Failed to list Agents from Kubernetes", err)
+	}
+
+	result := make([]api.AgentResponse, 0)
+	h.appendAgentResponses(ctx, log, agentObjects(agentList.Items), &result)
+
+	harnessList := &v1alpha2.AgentHarnessList{}
+	if err := h.KubeClient.List(ctx, harnessList, opts...); err != nil {
+		return nil, errors.NewInternalServerError("Failed to list AgentHarness resources from Kubernetes", err)
+	}
+	for i := range harnessList.Items {
+		sb := &harnessList.Items[i]
+		if sb.Spec.Backend != v1alpha2.AgentHarnessBackendOpenClaw && sb.Spec.Backend != v1alpha2.AgentHarnessBackendNemoClaw {
+			continue
+		}
+		result = append(result, h.openshellAgentHarnessAgentResponse(ctx, log, sb))
+	}
+
+	return result, nil
 }
 
 func (h *AgentsHandler) appendAgentResponses(

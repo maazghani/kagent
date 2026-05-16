@@ -895,6 +895,7 @@ func TestHandleListAgentsForNamespace(t *testing.T) {
 
 		require.Equal(t, http.StatusBadRequest, w.Code)
 	})
+
 }
 
 func TestHandleCreateAgentHarness(t *testing.T) {
