@@ -566,25 +566,10 @@ export async function createAgent(agentConfig: AgentFormData, update: boolean = 
  * @param opts.namespace When set, calls `/agents/{namespace}`; otherwise calls `/agents`.
  * @returns A promise with the matching agents
  */
-export async function getAgents(): Promise<BaseResponse<AgentResponse[]>> {
+export async function getAgents(opts: { namespace?: string } = {}): Promise<BaseResponse<AgentResponse[]>> {
   try {
-    const { data } = await fetchApi<BaseResponse<AgentResponse[]>>("/agents");
-
-    const sortedData = data?.sort((a, b) => {
-      const aRef = k8sRefUtils.toRef(a.agent.metadata.namespace || "", a.agent.metadata.name);
-      const bRef = k8sRefUtils.toRef(b.agent.metadata.namespace || "", b.agent.metadata.name);
-      return aRef.localeCompare(bRef);
-    });
-
-    return { message: "Successfully fetched agents", data: sortedData };
-  } catch (error) {
-    return createErrorResponse<AgentResponse[]>(error, "Error getting agents");
-  }
-}
-
-export async function getAgentsForNamespace(namespace: string): Promise<BaseResponse<AgentResponse[]>> {
-  try {
-    const { data } = await fetchApi<BaseResponse<AgentResponse[]>>(`/agents/${namespace}`);
+    const path = opts.namespace ? `/agents/${encodeURIComponent(opts.namespace)}` : `/agents`;
+    const { data } = await fetchApi<BaseResponse<AgentResponse[]>>(path);
 
     const sortedData = data?.sort((a, b) => {
       const aRef = k8sRefUtils.toRef(a.agent.metadata.namespace || "", a.agent.metadata.name);
