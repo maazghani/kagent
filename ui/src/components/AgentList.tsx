@@ -38,7 +38,7 @@ export default function AgentList({ namespace }: AgentListProps) {
       void refreshAgents({ namespace });
       return;
     }
-    void refreshAgents();
+    void refreshAgents({ namespace: undefined });
   }, [namespace, refreshAgents]);
 
   useEffect(() => {

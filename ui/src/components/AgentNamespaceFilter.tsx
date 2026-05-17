@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-export const RESERVED_AGENT_NAMESPACE_SEGMENTS = new Set(["new"]);
+export const RESERVED_AGENT_NAMESPACE_SEGMENTS = new Set(["new", "new-harness"]);
 
 interface AgentNamespaceFilterProps {
   namespace?: string;
