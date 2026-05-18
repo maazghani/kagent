@@ -563,12 +563,12 @@ export async function createAgent(agentConfig: AgentFormData, update: boolean = 
 
 /**
  * Gets all agents, optionally filtered by namespace.
- * @param opts.namespace When set, calls `/agents/{namespace}`; otherwise calls `/agents`.
+ * @param opts.namespace When set, calls `/agents?filter={namespace}`; otherwise calls `/agents`.
  * @returns A promise with the matching agents
  */
 export async function getAgents(opts: { namespace?: string } = {}): Promise<BaseResponse<AgentResponse[]>> {
   try {
-    const path = opts.namespace ? `/agents/${encodeURIComponent(opts.namespace)}` : `/agents`;
+    const path = opts.namespace ? `/agents?filter=${encodeURIComponent(opts.namespace)}` : `/agents`;
     const { data } = await fetchApi<BaseResponse<AgentResponse[]>>(path);
 
     const sortedData = data?.sort((a, b) => {

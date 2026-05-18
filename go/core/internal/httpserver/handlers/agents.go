@@ -36,22 +36,16 @@ func NewAgentsHandler(base *Base) *AgentsHandler {
 // HandleListAgents handles GET /api/agents requests using database
 func (h *AgentsHandler) HandleListAgents(w ErrorResponseWriter, r *http.Request) {
 	log := ctrllog.FromContext(r.Context()).WithName("agents-handler").WithValues("operation", "list-db")
-	h.handleListAgents(w, r, log)
-}
 
-// HandleListAgentsForNamespace handles GET /api/agents/{namespace} requests.
-func (h *AgentsHandler) HandleListAgentsForNamespace(w ErrorResponseWriter, r *http.Request) {
-	log := ctrllog.FromContext(r.Context()).WithName("agents-handler").WithValues("operation", "list-db")
-
-	namespace, err := GetPathParam(r, "namespace")
-	if err != nil {
-		w.RespondWithError(errors.NewBadRequestError("Failed to get namespace from path", err))
+	namespace := r.URL.Query().Get("filter")
+	if namespace == "" {
+		h.handleListAgents(w, r, log)
 		return
 	}
 
 	if strings.TrimSpace(namespace) != namespace {
 		w.RespondWithError(errors.NewBadRequestError(
-			fmt.Sprintf("invalid namespace %q: must not contain leading or trailing whitespace", namespace),
+			fmt.Sprintf("invalid filter %q: namespace filter must not contain leading or trailing whitespace", namespace),
 			nil,
 		))
 		return
@@ -59,13 +53,13 @@ func (h *AgentsHandler) HandleListAgentsForNamespace(w ErrorResponseWriter, r *h
 
 	if errs := utilvalidation.IsDNS1123Label(namespace); len(errs) > 0 {
 		w.RespondWithError(errors.NewBadRequestError(
-			fmt.Sprintf("invalid namespace %q: %s", namespace, strings.Join(errs, "; ")),
+			fmt.Sprintf("invalid filter %q: namespace filter must be a valid namespace: %s", namespace, strings.Join(errs, "; ")),
 			nil,
 		))
 		return
 	}
 
-	h.handleListAgents(w, r, log.WithValues("namespace", namespace), client.InNamespace(namespace))
+	h.handleListAgents(w, r, log.WithValues("filter", namespace), client.InNamespace(namespace))
 }
 
 func (h *AgentsHandler) handleListAgents(w ErrorResponseWriter, r *http.Request, log logr.Logger, opts ...client.ListOption) {
