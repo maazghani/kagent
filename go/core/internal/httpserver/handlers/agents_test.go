@@ -501,7 +501,7 @@ func TestHandleListAgents(t *testing.T) {
 		require.True(t, found)
 	})
 
-	t.Run("filters Agent and AgentHarness rows by namespace path", func(t *testing.T) {
+	t.Run("filters Agent and AgentHarness rows by namespace query parameter", func(t *testing.T) {
 		modelConfig := createTestModelConfig()
 		agentDefault := createTestAgent("agent-in-default", modelConfig)
 		agentOther := &v1alpha2.Agent{
@@ -562,7 +562,7 @@ func TestHandleListAgents(t *testing.T) {
 	// Kubernetes namespace names must be DNS-1123 labels. Rejecting invalid input
 	// before calling the Kubernetes client keeps the list path consistent with
 	// other resource handlers and avoids surprising cross-namespace behavior.
-	t.Run("returns 400 for invalid namespace query parameter value", func(t *testing.T) {
+	t.Run("returns 400 for invalid namespace query value", func(t *testing.T) {
 		handler, _ := setupTestHandler(t)
 
 		req := httptest.NewRequest("GET", "/api/agents?namespace=INVALID_NS!", nil)
@@ -574,7 +574,7 @@ func TestHandleListAgents(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("returns 400 for namespace query parameter value with leading or trailing whitespace", func(t *testing.T) {
+	t.Run("returns 400 for namespace query value with leading or trailing whitespace", func(t *testing.T) {
 		handler, _ := setupTestHandler(t)
 
 		req := httptest.NewRequest("GET", "/api/agents?namespace=%20default", nil)
