@@ -33,19 +33,14 @@ func NewAgentsHandler(base *Base) *AgentsHandler {
 	return &AgentsHandler{Base: base}
 }
 
-// HandleListAgents handles GET /api/agents requests using database
+// HandleListAgents handles GET /api/agents requests using database.
+// Optional query param: namespace=<ns>.
 func (h *AgentsHandler) HandleListAgents(w ErrorResponseWriter, r *http.Request) {
 	log := ctrllog.FromContext(r.Context()).WithName("agents-handler").WithValues("operation", "list-db")
-	h.handleListAgents(w, r, log)
-}
 
-// HandleListAgentsForNamespace handles GET /api/agents/{namespace} requests.
-func (h *AgentsHandler) HandleListAgentsForNamespace(w ErrorResponseWriter, r *http.Request) {
-	log := ctrllog.FromContext(r.Context()).WithName("agents-handler").WithValues("operation", "list-db")
-
-	namespace, err := GetPathParam(r, "namespace")
-	if err != nil {
-		w.RespondWithError(errors.NewBadRequestError("Failed to get namespace from path", err))
+	namespace := r.URL.Query().Get("namespace")
+	if namespace == "" {
+		h.handleListAgents(w, r, log)
 		return
 	}
 

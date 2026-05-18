@@ -501,7 +501,7 @@ func TestHandleListAgents(t *testing.T) {
 		require.True(t, found)
 	})
 
-	t.Run("filters Agent and AgentHarness rows by namespace path", func(t *testing.T) {
+	t.Run("filters Agent and AgentHarness rows by namespace query parameter", func(t *testing.T) {
 		modelConfig := createTestModelConfig()
 		agentDefault := createTestAgent("agent-in-default", modelConfig)
 		agentOther := &v1alpha2.Agent{
@@ -536,12 +536,11 @@ func TestHandleListAgents(t *testing.T) {
 		}
 		handler, _ := setupTestHandler(t, agentDefault, agentOther, harnessDefault, harnessOther, unsupportedHarnessDefault, modelConfig)
 
-		req := httptest.NewRequest("GET", "/api/agents/default", nil)
-		req = mux.SetURLVars(req, map[string]string{"namespace": "default"})
+		req := httptest.NewRequest("GET", "/api/agents?namespace=default", nil)
 		req = setUser(req, "test-user")
 		w := httptest.NewRecorder()
 
-		handler.HandleListAgentsForNamespace(&testErrorResponseWriter{w}, req)
+		handler.HandleListAgents(&testErrorResponseWriter{w}, req)
 
 		require.Equal(t, http.StatusOK, w.Code)
 		var response api.StandardResponse[[]api.AgentResponse]
@@ -563,28 +562,26 @@ func TestHandleListAgents(t *testing.T) {
 	// Kubernetes namespace names must be DNS-1123 labels. Rejecting invalid input
 	// before calling the Kubernetes client keeps the list path consistent with
 	// other resource handlers and avoids surprising cross-namespace behavior.
-	t.Run("returns 400 for invalid namespace path value", func(t *testing.T) {
+	t.Run("returns 400 for invalid namespace query value", func(t *testing.T) {
 		handler, _ := setupTestHandler(t)
 
-		req := httptest.NewRequest("GET", "/api/agents/INVALID_NS!", nil)
-		req = mux.SetURLVars(req, map[string]string{"namespace": "INVALID_NS!"})
+		req := httptest.NewRequest("GET", "/api/agents?namespace=INVALID_NS!", nil)
 		req = setUser(req, "test-user")
 		w := httptest.NewRecorder()
 
-		handler.HandleListAgentsForNamespace(&testErrorResponseWriter{w}, req)
+		handler.HandleListAgents(&testErrorResponseWriter{w}, req)
 
 		require.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("returns 400 for namespace path value with leading or trailing whitespace", func(t *testing.T) {
+	t.Run("returns 400 for namespace query value with leading or trailing whitespace", func(t *testing.T) {
 		handler, _ := setupTestHandler(t)
 
-		req := httptest.NewRequest("GET", "/api/agents/%20default", nil)
-		req = mux.SetURLVars(req, map[string]string{"namespace": " default"})
+		req := httptest.NewRequest("GET", "/api/agents?namespace=%20default", nil)
 		req = setUser(req, "test-user")
 		w := httptest.NewRecorder()
 
-		handler.HandleListAgentsForNamespace(&testErrorResponseWriter{w}, req)
+		handler.HandleListAgents(&testErrorResponseWriter{w}, req)
 
 		require.Equal(t, http.StatusBadRequest, w.Code)
 		require.Contains(t, w.Body.String(), "must not contain leading or trailing whitespace")

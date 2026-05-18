@@ -46,7 +46,7 @@ func (c *agentClient) ListAgents(ctx context.Context, opts ...ListAgentsOptions)
 
 	path := "/api/agents"
 	if len(opts) > 0 && opts[0].Namespace != "" {
-		path += "/" + url.PathEscape(opts[0].Namespace)
+		path += "?namespace=" + url.QueryEscape(opts[0].Namespace)
 	}
 
 	resp, err := c.client.Get(ctx, path, userID)
