@@ -60,7 +60,7 @@ describe("AgentList", () => {
 
     render(<AgentList />);
 
-    await waitFor(() => expect(refreshAgents).toHaveBeenCalledWith());
+    await waitFor(() => expect(refreshAgents).toHaveBeenCalledWith({ namespace: undefined }));
   });
 
   it("uses namespace-specific empty state copy", () => {
