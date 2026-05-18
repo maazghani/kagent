@@ -33,9 +33,34 @@ func NewAgentsHandler(base *Base) *AgentsHandler {
 	return &AgentsHandler{Base: base}
 }
 
-// HandleListAgents handles GET /api/agents requests using database
+// HandleListAgents handles GET /api/agents and GET /api/agents?namespace={namespace} requests using database
 func (h *AgentsHandler) HandleListAgents(w ErrorResponseWriter, r *http.Request) {
 	log := ctrllog.FromContext(r.Context()).WithName("agents-handler").WithValues("operation", "list-db")
+
+	// Check for namespace query parameter
+	namespace := r.URL.Query().Get("namespace")
+	if namespace != "" {
+		if strings.TrimSpace(namespace) != namespace {
+			w.RespondWithError(errors.NewBadRequestError(
+				fmt.Sprintf("invalid namespace %q: must not contain leading or trailing whitespace", namespace),
+				nil,
+			))
+			return
+		}
+
+		if errs := utilvalidation.IsDNS1123Label(namespace); len(errs) > 0 {
+			w.RespondWithError(errors.NewBadRequestError(
+				fmt.Sprintf("invalid namespace %q: %s", namespace, strings.Join(errs, "; ")),
+				nil,
+			))
+			return
+		}
+
+		log = log.WithValues("namespace", namespace)
+		h.handleListAgents(w, r, log, client.InNamespace(namespace))
+		return
+	}
+
 	h.handleListAgents(w, r, log)
 }
 
