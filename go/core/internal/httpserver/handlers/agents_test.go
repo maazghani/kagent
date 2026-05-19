@@ -536,7 +536,7 @@ func TestHandleListAgents(t *testing.T) {
 		}
 		handler, _ := setupTestHandler(t, agentDefault, agentOther, harnessDefault, harnessOther, unsupportedHarnessDefault, modelConfig)
 
-		req := httptest.NewRequest("GET", "/api/agents?filter=default", nil)
+		req := httptest.NewRequest("GET", "/api/agents?filter=namespace=default", nil)
 		req = setUser(req, "test-user")
 		w := httptest.NewRecorder()
 
@@ -565,7 +565,7 @@ func TestHandleListAgents(t *testing.T) {
 	t.Run("returns 400 for invalid namespace filter value", func(t *testing.T) {
 		handler, _ := setupTestHandler(t)
 
-		req := httptest.NewRequest("GET", "/api/agents?filter=INVALID_NS!", nil)
+		req := httptest.NewRequest("GET", "/api/agents?filter=namespace=INVALID_NS!", nil)
 		req = setUser(req, "test-user")
 		w := httptest.NewRecorder()
 
@@ -577,14 +577,53 @@ func TestHandleListAgents(t *testing.T) {
 	t.Run("returns 400 for namespace filter value with leading or trailing whitespace", func(t *testing.T) {
 		handler, _ := setupTestHandler(t)
 
-		req := httptest.NewRequest("GET", "/api/agents?filter=%20default", nil)
+		req := httptest.NewRequest("GET", "/api/agents?filter=namespace=%20default", nil)
 		req = setUser(req, "test-user")
 		w := httptest.NewRecorder()
 
 		handler.HandleListAgents(&testErrorResponseWriter{w}, req)
 
 		require.Equal(t, http.StatusBadRequest, w.Code)
-		require.Contains(t, w.Body.String(), "namespace filter must not contain leading or trailing whitespace")
+		require.Contains(t, w.Body.String(), "filter value must not contain leading or trailing whitespace")
+	})
+
+	t.Run("returns 400 for invalid filter format (no equals sign)", func(t *testing.T) {
+		handler, _ := setupTestHandler(t)
+
+		req := httptest.NewRequest("GET", "/api/agents?filter=default", nil)
+		req = setUser(req, "test-user")
+		w := httptest.NewRecorder()
+
+		handler.HandleListAgents(&testErrorResponseWriter{w}, req)
+
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		require.Contains(t, w.Body.String(), "expected format 'namespace=value'")
+	})
+
+	t.Run("returns 400 for unsupported filter type", func(t *testing.T) {
+		handler, _ := setupTestHandler(t)
+
+		req := httptest.NewRequest("GET", "/api/agents?filter=owner=alice", nil)
+		req = setUser(req, "test-user")
+		w := httptest.NewRecorder()
+
+		handler.HandleListAgents(&testErrorResponseWriter{w}, req)
+
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		require.Contains(t, w.Body.String(), "unsupported filter type")
+	})
+
+	t.Run("returns 400 for empty filter value", func(t *testing.T) {
+		handler, _ := setupTestHandler(t)
+
+		req := httptest.NewRequest("GET", "/api/agents?filter=namespace=", nil)
+		req = setUser(req, "test-user")
+		w := httptest.NewRecorder()
+
+		handler.HandleListAgents(&testErrorResponseWriter{w}, req)
+
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		require.Contains(t, w.Body.String(), "filter value must not be empty")
 	})
 }
 

@@ -37,29 +37,58 @@ func NewAgentsHandler(base *Base) *AgentsHandler {
 func (h *AgentsHandler) HandleListAgents(w ErrorResponseWriter, r *http.Request) {
 	log := ctrllog.FromContext(r.Context()).WithName("agents-handler").WithValues("operation", "list-db")
 
-	namespace := r.URL.Query().Get("filter")
-	if namespace == "" {
+	filter := r.URL.Query().Get("filter")
+	if filter == "" {
 		h.handleListAgents(w, r, log)
 		return
 	}
 
-	if strings.TrimSpace(namespace) != namespace {
+	// Parse filter format: "namespace=value"
+	parts := strings.SplitN(filter, "=", 2)
+	if len(parts) != 2 {
 		w.RespondWithError(errors.NewBadRequestError(
-			fmt.Sprintf("invalid filter %q: namespace filter must not contain leading or trailing whitespace", namespace),
+			fmt.Sprintf("invalid filter %q: expected format 'namespace=value'", filter),
 			nil,
 		))
 		return
 	}
 
-	if errs := utilvalidation.IsDNS1123Label(namespace); len(errs) > 0 {
+	filterType := strings.TrimSpace(parts[0])
+	filterValue := strings.TrimSpace(parts[1])
+
+	if filterType != "namespace" {
 		w.RespondWithError(errors.NewBadRequestError(
-			fmt.Sprintf("invalid filter %q: namespace filter must be a valid namespace: %s", namespace, strings.Join(errs, "; ")),
+			fmt.Sprintf("unsupported filter type %q: only 'namespace' is supported", filterType),
 			nil,
 		))
 		return
 	}
 
-	h.handleListAgents(w, r, log.WithValues("filter", namespace), client.InNamespace(namespace))
+	if filterValue == "" {
+		w.RespondWithError(errors.NewBadRequestError(
+			fmt.Sprintf("invalid filter %q: filter value must not be empty", filter),
+			nil,
+		))
+		return
+	}
+
+	if strings.TrimSpace(filterValue) != filterValue {
+		w.RespondWithError(errors.NewBadRequestError(
+			fmt.Sprintf("invalid filter %q: filter value must not contain leading or trailing whitespace", filter),
+			nil,
+		))
+		return
+	}
+
+	if errs := utilvalidation.IsDNS1123Label(filterValue); len(errs) > 0 {
+		w.RespondWithError(errors.NewBadRequestError(
+			fmt.Sprintf("invalid filter %q: filter value must be a valid namespace: %s", filter, strings.Join(errs, "; ")),
+			nil,
+		))
+		return
+	}
+
+	h.handleListAgents(w, r, log.WithValues("filter", filter), client.InNamespace(filterValue))
 }
 
 func (h *AgentsHandler) handleListAgents(w ErrorResponseWriter, r *http.Request, log logr.Logger, opts ...client.ListOption) {
