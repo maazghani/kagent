@@ -1,4 +1,10 @@
 import AgentList from "@/components/AgentList";
-export default function AgentListPage() {
-  return <AgentList />;
+
+interface AgentListPageProps {
+  searchParams?: Promise<{ namespace?: string }> | { namespace?: string };
+}
+
+export default async function AgentListPage({ searchParams }: AgentListPageProps) {
+  const params = await searchParams;
+  return <AgentList namespace={params?.namespace} />;
 }

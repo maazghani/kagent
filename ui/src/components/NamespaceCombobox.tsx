@@ -28,6 +28,7 @@ interface NamespaceComboboxProps {
   id?: string;
   // callback to handle errors in case the parent component wants to handle an error
   onError?: (error: string | null) => void;
+  includeAllNamespaces?: boolean;
 }
 
 export function NamespaceCombobox({
@@ -37,6 +38,7 @@ export function NamespaceCombobox({
   disabled = false,
   id: triggerId,
   onError,
+  includeAllNamespaces = false,
 }: NamespaceComboboxProps) {
   const [open, setOpen] = useState(false);
   const [namespaces, setNamespaces] = useState<NamespaceResponse[]>([]);
@@ -59,7 +61,7 @@ export function NamespaceCombobox({
           onError?.(null);
   
           // Set a default namespace if none is currently selected
-          if (!value) {
+          if (!value && !includeAllNamespaces) {
             const names = sorted.map((ns) => ns.name);
             let defaultNamespace: string | undefined;
             if (names.includes("kagent")) {
@@ -141,6 +143,18 @@ export function NamespaceCombobox({
                   {loading ? "Loading..." : "No namespaces found."}
                 </CommandEmpty>
                 <CommandGroup>
+                  {includeAllNamespaces ? (
+                    <CommandItem
+                      value="all namespaces"
+                      onSelect={() => {
+                        onValueChange("");
+                        setOpen(false);
+                      }}
+                    >
+                      <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
+                      <span>All namespaces</span>
+                    </CommandItem>
+                  ) : null}
                   {namespaces.map((namespace) => (
                     <CommandItem
                       key={namespace.name}

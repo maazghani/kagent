@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AgentGrid } from "@/components/AgentGrid";
 import { AgentListView } from "@/components/AgentListView";
 import { Plus, LayoutGrid, List } from "lucide-react";
+import AgentNamespaceSelector from "./AgentNamespaceSelector";
 import KagentLogo from "@/components/kagent-logo";
 import Link from "next/link";
 import { ErrorState } from "./ErrorState";
@@ -24,8 +25,8 @@ function readStoredView(): AgentsView {
   return v === "list" ? "list" : "grid";
 }
 
-export default function AgentList() {
-  const { agents , loading, error } = useAgents();
+export default function AgentList({ namespace }: { namespace?: string }) {
+  const { agents , loading, error, refreshAgents } = useAgents();
   const [view, setView] = useState<AgentsView>("grid");
 
   useEffect(() => {
@@ -44,6 +45,10 @@ export default function AgentList() {
     }
   }, []);
 
+  useEffect(() => {
+    refreshAgents(namespace ? { namespace } : undefined);
+  }, [namespace, refreshAgents]);
+
   if (error) {
     return <ErrorState message={error} />;
   }
@@ -59,7 +64,9 @@ export default function AgentList() {
         title="Agents"
         className="mb-8"
         end={
-          agents && agents.length > 0 ? (
+          <div className="flex items-center justify-end gap-2">
+            <AgentNamespaceSelector selectedNamespace={namespace} />
+            {agents && agents.length > 0 ? (
             <div
               className="flex w-full min-w-0 items-center justify-end gap-1 rounded-lg border border-border/60 bg-muted/20 p-1"
               role="group"
@@ -100,15 +107,18 @@ export default function AgentList() {
                 </span>
               </Button>
             </div>
-          ) : null
+            ) : null}
+          </div>
         }
       />
 
       {agents?.length === 0 ? (
         <div className="rounded-xl border border-border/60 bg-card/30 py-12 text-center shadow-sm">
           <KagentLogo className="mx-auto mb-4 h-16 w-16" />
-          <h2 className="mb-2 text-lg font-medium tracking-tight">No agents yet</h2>
-          <p className="mb-6 text-pretty text-sm text-muted-foreground">Create an agent to run it in your cluster and wire models and tools in one place.</p>
+          <h2 className="mb-2 text-lg font-medium tracking-tight">{namespace ? `No agents in namespace ${namespace}` : "No agents yet"}</h2>
+          <p className="mb-6 text-pretty text-sm text-muted-foreground">
+            {namespace ? "No agents match the selected namespace." : "Create an agent to run it in your cluster and wire models and tools in one place."}
+          </p>
           <Button asChild size="lg" className="min-w-[12rem]">
             <Link href="/agents/new">
               <Plus className="mr-2 h-4 w-4" aria-hidden />

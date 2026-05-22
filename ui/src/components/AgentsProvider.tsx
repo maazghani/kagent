@@ -73,7 +73,7 @@ export interface AgentsContextType {
   loading: boolean;
   error: string;
   tools: ToolsResponse[];
-  refreshAgents: () => Promise<void>;
+  refreshAgents: (opts?: { namespace?: string }) => Promise<void>;
   refreshModels: () => Promise<void>;
   refreshTools: () => Promise<void>;
   createNewAgent: (agentData: AgentFormData) => Promise<BaseResponse<Agent>>;
@@ -94,32 +94,34 @@ export function useAgents() {
 
 export interface AgentsProviderProps {
   children: ReactNode;
+  namespace?: string;
 }
 
-export function AgentsProvider({ children }: AgentsProviderProps) {
+export function AgentsProvider({ children, namespace }: AgentsProviderProps) {
   const [agents, setAgents] = useState<AgentResponse[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [tools, setTools] = useState<ToolsResponse[]>([]);
   const [models, setModels] = useState<ModelConfig[]>([]);
 
-  const fetchAgents = useCallback(async () => {
+  const fetchAgents = useCallback(async (opts?: { namespace?: string }) => {
+    const nextNamespace = opts?.namespace ?? namespace;
     try {
       setLoading(true);
-      const agentsResult = await getAgents();
+      const agentsResult = await getAgents(nextNamespace ? { namespace: nextNamespace } : undefined);
 
-      if (!agentsResult.data || agentsResult.error) {
+      if (agentsResult.error) {
         throw new Error(agentsResult.error || "Failed to fetch agents");
       }
 
-      setAgents(agentsResult.data);
+      setAgents(agentsResult.data || []);
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [namespace]);
 
   const fetchModels = useCallback(async () => {
     try {
