@@ -28,7 +28,17 @@ interface NamespaceComboboxProps {
   id?: string;
   // callback to handle errors in case the parent component wants to handle an error
   onError?: (error: string | null) => void;
+  /**
+   * When true, prepends an "All namespaces" option that emits `""` via
+   * `onValueChange`, and skips picking a default namespace when `value` is
+   * empty. Off by default to keep create/model forms behaving as before.
+   */
+  includeAllOption?: boolean;
+  /** Label for the all-namespaces option. Defaults to "All namespaces". */
+  allOptionLabel?: string;
 }
+
+const ALL_NAMESPACES_VALUE = "__all__";
 
 export function NamespaceCombobox({
   value,
@@ -37,6 +47,8 @@ export function NamespaceCombobox({
   disabled = false,
   id: triggerId,
   onError,
+  includeAllOption = false,
+  allOptionLabel = "All namespaces",
 }: NamespaceComboboxProps) {
   const [open, setOpen] = useState(false);
   const [namespaces, setNamespaces] = useState<NamespaceResponse[]>([]);
@@ -58,8 +70,10 @@ export function NamespaceCombobox({
           setError(null);
           onError?.(null);
   
-          // Set a default namespace if none is currently selected
-          if (!value) {
+          // Set a default namespace if none is currently selected (skipped
+          // when the All-namespaces option is available, since "" is a valid
+          // explicit selection there).
+          if (!value && !includeAllOption) {
             const names = sorted.map((ns) => ns.name);
             let defaultNamespace: string | undefined;
             if (names.includes("kagent")) {
@@ -93,6 +107,7 @@ export function NamespaceCombobox({
   }, [onError]);
 
   const selectedNamespace = namespaces.find((ns) => ns.name === value);
+  const showingAll = includeAllOption && (value === "" || value === undefined);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -114,6 +129,8 @@ export function NamespaceCombobox({
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading namespaces...
             </div>
+          ) : showingAll ? (
+            <span>{allOptionLabel}</span>
           ) : selectedNamespace ? (
             <div className="flex items-center gap-2">
               <span>{selectedNamespace.name}</span>
@@ -141,6 +158,24 @@ export function NamespaceCombobox({
                   {loading ? "Loading..." : "No namespaces found."}
                 </CommandEmpty>
                 <CommandGroup>
+                  {includeAllOption ? (
+                    <CommandItem
+                      key={ALL_NAMESPACES_VALUE}
+                      value={ALL_NAMESPACES_VALUE}
+                      onSelect={() => {
+                        onValueChange("");
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          showingAll ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      <span>{allOptionLabel}</span>
+                    </CommandItem>
+                  ) : null}
                   {namespaces.map((namespace) => (
                     <CommandItem
                       key={namespace.name}

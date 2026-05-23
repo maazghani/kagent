@@ -9,6 +9,7 @@ export function createStoryAgentsContext(overrides: Partial<AgentsContextType>):
     loading: false,
     error: "",
     tools: [],
+    agentsRefreshToken: 0,
     refreshAgents: async () => {},
     refreshModels: async () => {},
     refreshTools: async () => {},

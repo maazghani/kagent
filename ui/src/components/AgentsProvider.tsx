@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
-import { getAgent as getAgentAction, createAgent, getAgents } from "@/app/actions/agents";
+import { getAgent as getAgentAction, createAgent } from "@/app/actions/agents";
 import { getTools } from "@/app/actions/tools";
 import type {
   Agent,
@@ -68,11 +68,21 @@ export interface AgentFormData {
 }
 
 export interface AgentsContextType {
+  /**
+   * @deprecated The provider no longer fetches the agents list. Read agents
+   * directly from the URL-driven hook on the agents page (see `AgentList`).
+   * Kept for compatibility with stories/fixtures.
+   */
   agents: AgentResponse[];
   models: ModelConfig[];
   loading: boolean;
   error: string;
   tools: ToolsResponse[];
+  /**
+   * Bumps a token consumed by URL-driven agent list fetchers so that callers
+   * (e.g. `DeleteAgentButton`) can trigger a re-fetch without owning state.
+   */
+  agentsRefreshToken: number;
   refreshAgents: () => Promise<void>;
   refreshModels: () => Promise<void>;
   refreshTools: () => Promise<void>;
@@ -97,28 +107,16 @@ export interface AgentsProviderProps {
 }
 
 export function AgentsProvider({ children }: AgentsProviderProps) {
-  const [agents, setAgents] = useState<AgentResponse[]>([]);
+  const [agentsRefreshToken, setAgentsRefreshToken] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [tools, setTools] = useState<ToolsResponse[]>([]);
   const [models, setModels] = useState<ModelConfig[]>([]);
 
   const fetchAgents = useCallback(async () => {
-    try {
-      setLoading(true);
-      const agentsResult = await getAgents();
-
-      if (!agentsResult.data || agentsResult.error) {
-        throw new Error(agentsResult.error || "Failed to fetch agents");
-      }
-
-      setAgents(agentsResult.data);
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
-    } finally {
-      setLoading(false);
-    }
+    // The agents list is now fetched per-view (URL-driven). Bump a token so
+    // any active list view re-runs its fetch.
+    setAgentsRefreshToken((t) => t + 1);
   }, []);
 
   const fetchModels = useCallback(async () => {
@@ -279,8 +277,8 @@ export function AgentsProvider({ children }: AgentsProviderProps) {
       const result = await createAgent(agentData);
 
       if (!result.error) {
-        // Refresh agents to get the newly created one
-        await fetchAgents();
+        // Tell URL-driven list views to re-fetch.
+        setAgentsRefreshToken((t) => t + 1);
       }
 
       return result;
@@ -291,7 +289,7 @@ export function AgentsProvider({ children }: AgentsProviderProps) {
         error: error instanceof Error ? error.message : "Failed to create agent",
       };
     }
-  }, [fetchAgents, validateAgentData]);
+  }, [validateAgentData]);
 
   // Update existing agent
   const updateAgent = useCallback(async (agentData: AgentFormData): Promise<BaseResponse<Agent>> => {
@@ -307,8 +305,8 @@ export function AgentsProvider({ children }: AgentsProviderProps) {
       const result = await createAgent(agentData, true);
 
       if (!result.error) {
-        // Refresh agents to get the updated one
-        await fetchAgents();
+        // Tell URL-driven list views to re-fetch.
+        setAgentsRefreshToken((t) => t + 1);
       }
 
       return result;
@@ -319,21 +317,22 @@ export function AgentsProvider({ children }: AgentsProviderProps) {
         error: error instanceof Error ? error.message : "Failed to update agent",
       };
     }
-  }, [fetchAgents, validateAgentData]);
+  }, [validateAgentData]);
 
-  // Initial fetches
+  // Initial fetches: models and tools only. Agents list is URL-driven and
+  // fetched by the page that needs it (see `AgentList`).
   useEffect(() => {
-    fetchAgents();
     fetchTools();
     fetchModels();
-  }, [fetchAgents, fetchTools, fetchModels]);
+  }, [fetchTools, fetchModels]);
 
   const value = {
-    agents,
+    agents: [] as AgentResponse[],
     models,
     loading,
     error,
     tools,
+    agentsRefreshToken,
     refreshAgents: fetchAgents,
     refreshModels: fetchModels,
     refreshTools: fetchTools,

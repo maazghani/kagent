@@ -44,6 +44,8 @@ interface AgentPageContentProps {
   isEditMode: boolean;
   agentName: string | null;
   agentNamespace: string | null;
+  /** Optional `?namespace=` query in create mode; preselects the namespace and is preserved on cancel/save. */
+  initialNamespace: string | null;
 }
 
 const DEFAULT_SYSTEM_PROMPT = `You're a helpful agent, made by the kagent team.
@@ -59,7 +61,7 @@ const DEFAULT_SYSTEM_PROMPT = `You're a helpful agent, made by the kagent team.
     - Your response will include a summary of actions you took and an explanation of the result
     - If you created any artifacts such as files or resources, you will include those in your response as well`
 
-function AgentPageContent({ isEditMode, agentName, agentNamespace }: AgentPageContentProps) {
+function AgentPageContent({ isEditMode, agentName, agentNamespace, initialNamespace }: AgentPageContentProps) {
   const router = useRouter();
   const { models, loading, error, createNewAgent, updateAgent, getAgent, validateAgentData } = useAgents();
 
@@ -98,9 +100,11 @@ function AgentPageContent({ isEditMode, agentName, agentNamespace }: AgentPageCo
 
   const [formDirty, setFormDirty] = useState(false);
 
+  const initialNamespaceTrimmed = !isEditMode && initialNamespace && initialNamespace.trim() ? initialNamespace.trim() : "";
+
   const [state, setState] = useState<FormState>({
     name: "",
-    namespace: "default",
+    namespace: initialNamespaceTrimmed || "default",
     description: "",
     agentType: "Declarative",
     systemPrompt: isEditMode ? "" : DEFAULT_SYSTEM_PROMPT,
@@ -486,7 +490,11 @@ function AgentPageContent({ isEditMode, agentName, agentNamespace }: AgentPageCo
       }
 
       setFormDirty(false);
-      router.push(`/agents`);
+      const targetUrl =
+        !isEditMode && initialNamespaceTrimmed
+          ? `/agents?namespace=${encodeURIComponent(initialNamespaceTrimmed)}`
+          : `/agents`;
+      router.push(targetUrl);
     } catch (e) {
       console.error(`Error ${isEditMode ? "updating" : "creating"} agent:`, e);
       const errorMessage =
@@ -881,11 +889,18 @@ export default function AgentPage() {
   const isEditMode = searchParams.get("edit") === "true";
   const agentName = searchParams.get("name");
   const agentNamespace = searchParams.get("namespace");
-  const formKey = isEditMode ? `edit-${agentName}-${agentNamespace}` : "create";
+  const initialNamespace = isEditMode ? null : searchParams.get("namespace");
+  const formKey = isEditMode ? `edit-${agentName}-${agentNamespace}` : `create-${initialNamespace ?? ""}`;
 
   return (
     <Suspense fallback={<LoadingState />}>
-      <AgentPageContent key={formKey} isEditMode={isEditMode} agentName={agentName} agentNamespace={agentNamespace} />
+      <AgentPageContent
+        key={formKey}
+        isEditMode={isEditMode}
+        agentName={agentName}
+        agentNamespace={agentNamespace}
+        initialNamespace={initialNamespace}
+      />
     </Suspense>
   );
 }
